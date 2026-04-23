@@ -12,7 +12,7 @@ import { CompetenciaSection } from '../components/sections/CompetenciaSection'
 import { HallazgosSection } from '../components/sections/HallazgosSection'
 import { ProyeccionesSection } from '../components/sections/ProyeccionesSection'
 import { detectAvailableBuckets } from '../utils/campaigns'
- 
+
 const brandThemes = {
   botanera: {
     primary: '#FF6B00', secondary: '#FFD700', bgBase: '#2A0E00',
@@ -33,14 +33,14 @@ const brandThemes = {
     sidebarBg: 'rgba(3, 10, 25, 0.55)',
   },
 }
- 
+
 const defaultTheme = {
   primary: '#6366f1', secondary: '#818cf8', bgBase: '#0a0a1a',
   focusColor: 'rgba(99, 102, 241, 0.35)',
   ambient1: 'rgba(79, 70, 229, 0.25)', ambient2: 'rgba(129, 140, 248, 0.15)',
   sidebarBg: 'rgba(10, 10, 26, 0.55)',
 }
- 
+
 export function Dashboard() {
   const { marcaId } = useParams()
   const navigate = useNavigate()
@@ -49,28 +49,28 @@ export function Dashboard() {
   const [presentationMode, setPresentationMode] = useState(false)
   // GLOBAL bucket state — shared across all sections
   const [bucket, setBucket] = useState('mensual')
- 
+
   const {
     data, loading, error, refresh, isRefreshing,
     availableMonths, brandConfig, features,
   } = useSheetData(marcaId)
- 
+
   const baseTheme = brandThemes[marcaId] || defaultTheme
   const theme = brandConfig?.color_primario
     ? { ...baseTheme, primary: brandConfig.color_primario }
     : baseTheme
- 
+
   useEffect(() => {
     if (availableMonths.length > 0 && !selectedMonth) {
       setSelectedMonth(availableMonths[0])
     }
   }, [availableMonths, selectedMonth])
- 
+
   const getDataForMonth = (arr, month) =>
     Array.isArray(arr) ? (arr.find(d => d.mes === month) || null) : null
   const getArrayDataForMonth = (arr, month) =>
     Array.isArray(arr) ? arr.filter(d => d.mes === month) : []
- 
+
   const filteredData = {
     empresa: data.empresa,
     facebook: getDataForMonth(data.facebook, selectedMonth),
@@ -87,26 +87,26 @@ export function Dashboard() {
     hallazgos: getArrayDataForMonth(data.hallazgos, selectedMonth),
     observaciones: getArrayDataForMonth(data.observaciones, selectedMonth),
   }
- 
+
   const historicalData = {
     facebook: data.facebook || [],
     instagram: data.instagram || [],
     tiktok: data.tiktok || [],
   }
- 
+
   // Global buckets across all campaigns of the current month
   const availableBuckets = useMemo(
     () => detectAvailableBuckets(filteredData.campanas || []),
     [filteredData.campanas]
   )
- 
+
   // If selected bucket disappears (changed month), reset to mensual
   useEffect(() => {
     if (availableBuckets.length > 0 && !availableBuckets.find(b => b.key === bucket)) {
       setBucket('mensual')
     }
   }, [availableBuckets, bucket])
- 
+
   if (error) {
     return (
       <div
@@ -140,7 +140,7 @@ export function Dashboard() {
       </div>
     )
   }
- 
+
   return (
     <div
       className={`min-h-screen ${presentationMode ? 'presentation-mode' : ''}`}
@@ -155,7 +155,7 @@ export function Dashboard() {
       }}
     >
       <div className="noise-overlay" />
- 
+
       <Sidebar
         brandConfig={brandConfig}
         theme={theme}
@@ -163,7 +163,7 @@ export function Dashboard() {
         setCollapsed={setSidebarCollapsed}
         features={features}
       />
- 
+
       <div
         className={`transition-all duration-300 relative ${
           presentationMode ? 'ml-0' : (sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-[260px]')
@@ -180,7 +180,7 @@ export function Dashboard() {
           presentationMode={presentationMode}
           setPresentationMode={setPresentationMode}
         />
- 
+
         <main className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
           <Routes>
             <Route index element={<Navigate to="overview" replace />} />
@@ -225,14 +225,12 @@ export function Dashboard() {
               <TikTokSection
                 data={filteredData.tiktok}
                 campanas={filteredData.campanas}
+                proyecciones={data.proyecciones || []}
                 topPosts={filteredData.topPosts?.filter(p => p.plataforma === 'tiktok')}
                 observaciones={filteredData.observaciones?.find(o => o.seccion === 'tiktok')}
                 hallazgos={filteredData.hallazgos?.filter(h => h.seccion === 'tiktok')}
                 historical={historicalData.tiktok}
                 loading={loading}
-                bucket={bucket}
-                setBucket={setBucket}
-                availableBuckets={availableBuckets}
               />
             } />
             {features?.googleAds !== false && (
