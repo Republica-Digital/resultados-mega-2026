@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Papa from 'papaparse'
 import { normalizeImageUrl } from '../utils/urls'
 import { enrichCampaign } from '../utils/campaigns'
+import { processSheet } from '../utils/sheetDataParser'
 
 const SHEET_ID = import.meta.env.VITE_SHEET_ID
 
@@ -14,6 +15,18 @@ async function fetchSheet(sheetName) {
   const csvText = await response.text()
   const { data } = Papa.parse(csvText, { header: true, skipEmptyLines: true })
   return data
+}
+
+// Normaliza campos del CSV usando el parser de detección automática.
+// Merge: campos originales + campos detectados (los detectados ganan).
+function smartNormalize(rawRows) {
+  if (!rawRows || rawRows.length === 0) return []
+  const { rows: parsed } = processSheet(rawRows)
+  // Merge: cada fila original + campos detectados encima
+  return rawRows.map((original, i) => ({
+    ...original,
+    ...(parsed[i] || {}),
+  }))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -201,21 +214,21 @@ export function useSheetData(marcaId) {
       const brand = marcasNorm.find(b => b.marca_id === marcaId)
       setBrandConfig(brand)
 
-      const fbNorm   = normalizeRows(fbData)
-      const igNorm   = normalizeRows(igData)
-      const ttNorm   = normalizeRows(ttData)
-      const gadsNorm = normalizeRows(gadsData)
-      const sentNorm = normalizeRows(sentimentData)
+      const fbNorm   = normalizeRows(smartNormalize(fbData))
+      const igNorm   = normalizeRows(smartNormalize(igData))
+      const ttNorm   = normalizeRows(smartNormalize(ttData))
+      const gadsNorm = normalizeRows(smartNormalize(gadsData))
+      const sentNorm = normalizeRows(smartNormalize(sentimentData))
       const captNorm = normalizeCapturas(capturasData)
-      const compNorm = normalizeRows(competenciaData)
-      const hallNorm = normalizeRows(hallazgosData)
-      const obsNorm  = normalizeRows(observacionesData)
-      const gadsCiudNorm = normalizeRows(gadsCiudadesData)
-      const gadsKwNorm   = normalizeRows(gadsKeywordsData)
-      const proyNorm     = normalizeRows(proyeccionesData)
-      const postNorm     = normalizePostRows(postsData)
+      const compNorm = normalizeRows(smartNormalize(competenciaData))
+      const hallNorm = normalizeRows(smartNormalize(hallazgosData))
+      const obsNorm  = normalizeRows(smartNormalize(observacionesData))
+      const gadsCiudNorm = normalizeRows(smartNormalize(gadsCiudadesData))
+      const gadsKwNorm   = normalizeRows(smartNormalize(gadsKeywordsData))
+      const proyNorm     = normalizeRows(smartNormalize(proyeccionesData))
+      const postNorm     = normalizePostRows(smartNormalize(postsData))
 
-      const campBase = normalizeRows(campanasData)
+      const campBase = normalizeRows(smartNormalize(campanasData))
       const campNorm = campBase.map(enrichCampaign)
 
       const allMonths = new Set()
