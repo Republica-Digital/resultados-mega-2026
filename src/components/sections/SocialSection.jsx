@@ -179,15 +179,31 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
       if (mk && ok) { metricToObj[mk] = ok; objToMetric[ok] = mk }
     }
 
-    return metricTotals.map(m => {
+    // DEBUG — remove after verifying
+    console.group(`🔍 CPR Debug [${platform}]`)
+    console.log('platObjInvMap keys (from Campañas):', Object.keys(platObjInvMap))
+    console.log('metricTotals keys (from Proyecciones):', metricTotals.map(m => normKey(m.metrica || '')))
+    console.log('metricToObj:', metricToObj)
+    console.log('objToMetric:', objToMetric)
+    console.log('platProy raw:', platProy.map(r => ({ metrica: r.metrica, objetivo: r.objetivo, real: r.real, cpr_meta: r.cpr_meta })))
+    console.log('campanas raw:', campanas.filter(c => normPlat(c._platform || c.plataforma) === platform).map(c => ({ objective: c._objective, objetivo: c.objetivo, objetivo_detectado: c.objetivo_detectado, inv: c.inversion })))
+
+    const result = metricTotals.map(m => {
       const key = normKey(m.metrica || '')
       // Buscar inversión: primero por key directo, luego por objetivo mapeado
       const altKey = metricToObj[key] || objToMetric[key]
       const inv = platObjInvMap[key] || (altKey ? platObjInvMap[altKey] : 0)
-      const cpr = m.resultado > 0 ? inv / m.resultado : 0
+      // CPM: (inversión / alcance) × 1000; otros: inversión / resultado
+      const cpr = m.resultado > 0
+        ? isCPM(m.metrica) ? (inv / m.resultado) * 1000 : inv / m.resultado
+        : 0
+      console.log(`  metric="${key}" altKey="${altKey}" inv=${inv} resultado=${m.resultado} isCPM=${isCPM(m.metrica)} → cpr=${cpr}`)
       return { metrica: m.metrica, key, cpr, inv }
     }).filter(c => c.cpr > 0)
-  }, [metricTotals, platObjInvMap, platProy])
+
+    console.groupEnd()
+    return result
+  }, [metricTotals, platObjInvMap, platProy, campanas, platform])
 
   // ── CPR Meta a nivel plataforma (promedio desde sheet) ──
   const platCPRMetaMap = useMemo(
@@ -219,10 +235,16 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
     groups.length > 1 ? `${groups.length} grupos` : '',
   ].filter(Boolean).join(' · ')
 
+  // Helper: detecta si la métrica es de tipo "alcance" → CPM (por mil)
+  const isCPM = (metrica) => {
+    const k = normKey(metrica || '')
+    return k.includes('alcance') || k.includes('reach')
+  }
+
   // Helper: nombre del CPR según la métrica
   const cprLabel = (metrica) => {
     const k = normKey(metrica || '')
-    if (k.includes('alcance') || k.includes('reach')) return 'CPM (Alcance)'
+    if (k.includes('alcance') || k.includes('reach')) return 'CPM (x1,000)'
     if (k.includes('interacc') || k.includes('interaccion')) return 'CPI (Interacción)'
     if (k.includes('view')) return 'CPV (View)'
     if (k.includes('like')) return 'CPL (Like)'
@@ -376,10 +398,11 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
                       const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
                       const real = safeNumber(r.real)
                       if (!inv || !real) return <span className="text-white/30">—</span>
-                      const cpr = inv / real
+                      const cpr = isCPM(r.metrica || r.objetivo) ? (inv / real) * 1000 : inv / real
                       return (
                         <div>
                           <div className="text-sm font-mono text-amber-200">${formatDecimal(cpr, 4)}</div>
+                          {isCPM(r.metrica || r.objetivo) && <div className="text-[10px] text-white/40">x1,000</div>}
                         </div>
                       )
                     },
@@ -391,7 +414,7 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
                       const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
                       const real = safeNumber(r.real)
                       if (!inv || !real) return <span className="text-white/30">—</span>
-                      const cprReal = inv / real
+                      const cprReal = isCPM(r.metrica || r.objetivo) ? (inv / real) * 1000 : inv / real
                       // Leer CPR meta del sheet (cpr_meta de la fila de proyección de este grupo)
                       const cprMeta = getGroupCPRMeta(platProy, platform, bucket, metricKey)
                         || getGroupCPRMeta(platProy, platform, bucket, objKey)
