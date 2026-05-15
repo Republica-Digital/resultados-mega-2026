@@ -133,6 +133,25 @@ function getGroupCPRMeta(proyecciones, platform, bucket, objKey) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // PaidMediaSection — reutilizable para FB, IG y TikTok
 // ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper: detecta si la métrica es de tipo "alcance" → CPM (por mil)
+const isCPM = (metrica) => {
+  const k = normKey(metrica || '')
+  return k.includes('alcance') || k.includes('reach')
+}
+
+// Helper: nombre del CPR según la métrica
+const cprLabel = (metrica) => {
+  const k = normKey(metrica || '')
+  if (k.includes('alcance') || k.includes('reach')) return 'CPM (x1,000)'
+  if (k.includes('interacc') || k.includes('interaccion')) return 'CPI (Interacción)'
+  if (k.includes('view')) return 'CPV (View)'
+  if (k.includes('like')) return 'CPL (Like)'
+  if (k.includes('thruplay')) return 'CPTV (ThruPlay)'
+  if (k.includes('visitas')) return 'CPVP (Visita Perfil)'
+  return `CPR (${capitalize(metrica)})`
+}
+
 export function PaidMediaSection({ platform, month, campanas, proyecciones, accent }) {
   const [bucket, setBucket] = useState('mensual')
   const [open, setOpen]     = useState(false)
@@ -234,24 +253,6 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
     metricTotals.length > 0 ? `${metricTotals.length} métrica${metricTotals.length !== 1 ? 's' : ''}` : '',
     groups.length > 1 ? `${groups.length} grupos` : '',
   ].filter(Boolean).join(' · ')
-
-  // Helper: detecta si la métrica es de tipo "alcance" → CPM (por mil)
-  const isCPM = (metrica) => {
-    const k = normKey(metrica || '')
-    return k.includes('alcance') || k.includes('reach')
-  }
-
-  // Helper: nombre del CPR según la métrica
-  const cprLabel = (metrica) => {
-    const k = normKey(metrica || '')
-    if (k.includes('alcance') || k.includes('reach')) return 'CPM (x1,000)'
-    if (k.includes('interacc') || k.includes('interaccion')) return 'CPI (Interacción)'
-    if (k.includes('view')) return 'CPV (View)'
-    if (k.includes('like')) return 'CPL (Like)'
-    if (k.includes('thruplay')) return 'CPTV (ThruPlay)'
-    if (k.includes('visitas')) return 'CPVP (Visita Perfil)'
-    return `CPR (${capitalize(metrica)})`
-  }
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${accent}33` }}>
