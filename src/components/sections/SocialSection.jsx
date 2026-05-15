@@ -35,6 +35,9 @@ function capitalize(s) {
   return s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : '—'
 }
 const normPlat = v => String(v || '').toLowerCase().trim()
+// Normaliza keys de objetivo/métrica: lowercase, trim, sin acentos
+const normKey = v => String(v || '').toLowerCase().trim()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
 // ── Grupos únicos, mensual primero ───────────────────────────────────────────
 function getGroups(rows) {
@@ -71,7 +74,7 @@ function buildObjectiveInversionMap(campanas, platform, bucket) {
       return cPlat === platform && cBucket === bucket
     })
     .forEach(c => {
-      const key = String(c._objective || c.objetivo_detectado || c.objetivo || '').toLowerCase().trim()
+      const key = normKey(c._objective || c.objetivo_detectado || c.objetivo || '')
       if (!key) return
       map[key] = (map[key] || 0) + safeNumber(c.inversion)
     })
@@ -84,7 +87,7 @@ function buildPlatformObjectiveInversionMap(campanas, platform) {
   campanas
     .filter(c => normPlat(c._platform || c.plataforma) === platform)
     .forEach(c => {
-      const key = String(c._objective || c.objetivo_detectado || c.objetivo || '').toLowerCase().trim()
+      const key = normKey(c._objective || c.objetivo_detectado || c.objetivo || '')
       if (!key) return
       map[key] = (map[key] || 0) + safeNumber(c.inversion)
     })
@@ -98,7 +101,7 @@ function buildPlatformCPRMeta(proyecciones, platform) {
     if (normPlat(r.plataforma) !== platform) continue
     const cpr = safeNumber(r.cpr_meta)
     if (cpr <= 0) continue
-    const objKey = String(r.objetivo || r.metrica || '').toLowerCase().trim()
+    const objKey = normKey(r.objetivo || r.metrica || '')
     if (!objKey) continue
     if (!map[objKey]) map[objKey] = { sum: 0, count: 0 }
     map[objKey].sum += cpr
@@ -116,7 +119,7 @@ function getGroupCPRMeta(proyecciones, platform, bucket, objKey) {
   const rows = proyecciones.filter(r => {
     return normPlat(r.plataforma) === platform
       && tipoCampanaToBucket(r.tipo_campana || 'AON') === bucket
-      && String(r.objetivo || r.metrica || '').toLowerCase().trim() === objKey
+      && normKey(r.objetivo || r.metrica || '') === objKey
   })
   if (rows.length === 0) return null
   // Tomar el cpr_meta de la primera fila que lo tenga
@@ -150,7 +153,7 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
   const metricTotals = useMemo(() => {
     const map = {}
     for (const r of platProy) {
-      const key = String(r.metrica || r.objetivo || '').toLowerCase().trim()
+      const key = normKey(r.metrica || r.objetivo || '')
       if (!key) continue
       if (!map[key]) map[key] = { metrica: r.metrica || r.objetivo, resultado: 0 }
       map[key].resultado += safeNumber(r.real)
@@ -165,14 +168,26 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
   )
 
   // ── CPR por métrica a nivel plataforma: inversión(objetivo) / resultado(objetivo) ──
+  // Intenta matchear por metrica Y por objetivo (pueden tener nombres distintos)
   const platformCPRs = useMemo(() => {
+    // Construir mapa inverso: para cada fila de proyección, mapear su metrica → su objetivo
+    const metricToObj = {}
+    const objToMetric = {}
+    for (const r of platProy) {
+      const mk = normKey(r.metrica || '')
+      const ok = normKey(r.objetivo || '')
+      if (mk && ok) { metricToObj[mk] = ok; objToMetric[ok] = mk }
+    }
+
     return metricTotals.map(m => {
-      const key = String(m.metrica || '').toLowerCase().trim()
-      const inv = platObjInvMap[key] || 0
+      const key = normKey(m.metrica || '')
+      // Buscar inversión: primero por key directo, luego por objetivo mapeado
+      const altKey = metricToObj[key] || objToMetric[key]
+      const inv = platObjInvMap[key] || (altKey ? platObjInvMap[altKey] : 0)
       const cpr = m.resultado > 0 ? inv / m.resultado : 0
       return { metrica: m.metrica, key, cpr, inv }
     }).filter(c => c.cpr > 0)
-  }, [metricTotals, platObjInvMap])
+  }, [metricTotals, platObjInvMap, platProy])
 
   // ── CPR Meta a nivel plataforma (promedio desde sheet) ──
   const platCPRMetaMap = useMemo(
@@ -206,7 +221,7 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
 
   // Helper: nombre del CPR según la métrica
   const cprLabel = (metrica) => {
-    const k = String(metrica || '').toLowerCase().trim()
+    const k = normKey(metrica || '')
     if (k.includes('alcance') || k.includes('reach')) return 'CPM (Alcance)'
     if (k.includes('interacc') || k.includes('interaccion')) return 'CPI (Interacción)'
     if (k.includes('view')) return 'CPV (View)'
@@ -348,15 +363,16 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
                   },
                   { key: '_inv', label: 'Inversión', align: 'right',
                     render: (_, r) => {
-                      const objKey = String(r.objetivo || '').toLowerCase().trim()
-                      const inv = objInvMap[objKey]
+                      const objKey = normKey(r.objetivo || '')
+                      const metricKey = normKey(r.metrica || r.objetivo || '')
+                      const inv = objInvMap[objKey] || objInvMap[metricKey]
                       return inv > 0 ? formatCurrency(inv) : <span className="text-white/30">—</span>
                     },
                   },
                   { key: '_cpr', label: 'CPR', align: 'right',
                     render: (_, r) => {
-                      const metricKey = String(r.metrica || r.objetivo || '').toLowerCase().trim()
-                      const objKey = String(r.objetivo || '').toLowerCase().trim()
+                      const metricKey = normKey(r.metrica || r.objetivo || '')
+                      const objKey = normKey(r.objetivo || '')
                       const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
                       const real = safeNumber(r.real)
                       if (!inv || !real) return <span className="text-white/30">—</span>
@@ -370,8 +386,8 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
                   },
                   { key: '_cpr_vs', label: 'CPR vs Meta', align: 'right',
                     render: (_, r) => {
-                      const metricKey = String(r.metrica || r.objetivo || '').toLowerCase().trim()
-                      const objKey = String(r.objetivo || '').toLowerCase().trim()
+                      const metricKey = normKey(r.metrica || r.objetivo || '')
+                      const objKey = normKey(r.objetivo || '')
                       const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
                       const real = safeNumber(r.real)
                       if (!inv || !real) return <span className="text-white/30">—</span>
