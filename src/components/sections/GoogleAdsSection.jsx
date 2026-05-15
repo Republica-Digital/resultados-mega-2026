@@ -115,7 +115,7 @@ export function GoogleAdsSection({ data = [], ciudades = [], keywords = [], obse
                   <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold">Objetivo</th>
                   <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold text-right">Resultado</th>
                   <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold text-right">CPR</th>
-                  <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold text-right">VTR</th>
+                  <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold text-right">CTR/VTR</th>
                   <th className="py-2 px-3 text-[11px] uppercase tracking-wider text-white/55 font-semibold text-right">Inversión</th>
                 </tr>
               </thead>
@@ -123,9 +123,8 @@ export function GoogleAdsSection({ data = [], ciudades = [], keywords = [], obse
                 {rows.map((r, i) => {
                   const result = getRowResult(r)
                   const cpr = result > 0 ? safeNumber(r.inversion) / result : 0
-                  const vtr = r._obj === 'Video' && safeNumber(r.views) > 0
-                    ? (safeNumber(r.interacciones ?? 0) / safeNumber(r.views)) * 100
-                    : null
+                  // CTR/VTR viene directo del sheet (la columna CTR tiene CTR para Display y VTR para Video)
+                  const ctrVtr = safeNumber(r.ctr)
                   const resultLabel = getResultLabel(r._obj)
                   return (
                     <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -148,10 +147,10 @@ export function GoogleAdsSection({ data = [], ciudades = [], keywords = [], obse
                         <div className="text-[10px] text-white/45 mt-0.5">por resultado</div>
                       </td>
                       <td className="py-3 px-3 text-right">
-                        {vtr !== null ? (
+                        {ctrVtr > 0 ? (
                           <>
-                            <div className="text-sm font-mono text-emerald-300">{vtr.toFixed(2)}%</div>
-                            <div className="text-[10px] text-white/45 mt-0.5">Interacción / Views</div>
+                            <div className="text-sm font-mono text-emerald-300">{formatDecimal(ctrVtr, 2)}%</div>
+                            <div className="text-[10px] text-white/45 mt-0.5">{r._obj === 'Video' ? 'VTR' : 'CTR'}</div>
                           </>
                         ) : (
                           <span className="text-white/30 text-sm">—</span>
