@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Facebook, Instagram, Users, Eye, Heart, TrendingUp, Megaphone, DollarSign, BarChart2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Facebook, Instagram, Users, Eye, Heart, TrendingUp, Megaphone, DollarSign, BarChart2, ChevronDown, ChevronUp, Target } from 'lucide-react'
 import { KPICard, KPICardSkeleton } from '../ui/KPICard'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard, TrendLineChart } from '../ui/Charts'
@@ -7,7 +7,7 @@ import { ObservacionesCard } from '../ui/ObservacionesCard'
 import { TopPostsSection } from '../ui/PostCard'
 import { DataTable } from '../ui/DataTable'
 import { CampaignToggle } from '../ui/CampaignToggle'
-import { safeNumber, formatNumber, formatCurrency } from '../../utils/format'
+import { safeNumber, formatNumber, formatCurrency, formatDecimal } from '../../utils/format'
 import { tipoCampanaToBucket, bucketToLabel } from '../../utils/campaigns'
 
 const PLATFORM_CONFIG = {
@@ -78,6 +78,55 @@ function buildObjectiveInversionMap(campanas, platform, bucket) {
   return map
 }
 
+// ── Inversión por objetivo a nivel plataforma (todos los buckets) ────────────
+function buildPlatformObjectiveInversionMap(campanas, platform) {
+  const map = {}
+  campanas
+    .filter(c => normPlat(c._platform || c.plataforma) === platform)
+    .forEach(c => {
+      const key = String(c._objective || c.objetivo_detectado || c.objetivo || '').toLowerCase().trim()
+      if (!key) return
+      map[key] = (map[key] || 0) + safeNumber(c.inversion)
+    })
+  return map
+}
+
+// ── CPR Meta desde Proyecciones: promedio de cpr_meta por objetivo a nivel plataforma ──
+function buildPlatformCPRMeta(proyecciones, platform) {
+  const map = {} // objetivoKey → { sum, count }
+  for (const r of proyecciones) {
+    if (normPlat(r.plataforma) !== platform) continue
+    const cpr = safeNumber(r.cpr_meta)
+    if (cpr <= 0) continue
+    const objKey = String(r.objetivo || r.metrica || '').toLowerCase().trim()
+    if (!objKey) continue
+    if (!map[objKey]) map[objKey] = { sum: 0, count: 0 }
+    map[objKey].sum += cpr
+    map[objKey].count += 1
+  }
+  const result = {}
+  for (const [key, val] of Object.entries(map)) {
+    result[key] = val.count > 0 ? val.sum / val.count : 0
+  }
+  return result
+}
+
+// ── CPR Meta a nivel grupo: lee cpr_meta de la fila exacta ──────────────────
+function getGroupCPRMeta(proyecciones, platform, bucket, objKey) {
+  const rows = proyecciones.filter(r => {
+    return normPlat(r.plataforma) === platform
+      && tipoCampanaToBucket(r.tipo_campana || 'AON') === bucket
+      && String(r.objetivo || r.metrica || '').toLowerCase().trim() === objKey
+  })
+  if (rows.length === 0) return null
+  // Tomar el cpr_meta de la primera fila que lo tenga
+  for (const r of rows) {
+    const cpr = safeNumber(r.cpr_meta)
+    if (cpr > 0) return cpr
+  }
+  return null
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PaidMediaSection — reutilizable para FB, IG y TikTok
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -109,6 +158,28 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
     return Object.values(map).filter(m => m.resultado > 0).sort((a, b) => b.resultado - a.resultado)
   }, [platProy])
 
+  // ── Mapa inversión por objetivo a nivel plataforma (todos los grupos) ──
+  const platObjInvMap = useMemo(
+    () => buildPlatformObjectiveInversionMap(campanas, platform),
+    [campanas, platform]
+  )
+
+  // ── CPR por métrica a nivel plataforma: inversión(objetivo) / resultado(objetivo) ──
+  const platformCPRs = useMemo(() => {
+    return metricTotals.map(m => {
+      const key = String(m.metrica || '').toLowerCase().trim()
+      const inv = platObjInvMap[key] || 0
+      const cpr = m.resultado > 0 ? inv / m.resultado : 0
+      return { metrica: m.metrica, key, cpr, inv }
+    }).filter(c => c.cpr > 0)
+  }, [metricTotals, platObjInvMap])
+
+  // ── CPR Meta a nivel plataforma (promedio desde sheet) ──
+  const platCPRMetaMap = useMemo(
+    () => buildPlatformCPRMeta(platProy, platform),
+    [platProy, platform]
+  )
+
   // Filas del grupo seleccionado
   const groupRows = useMemo(
     () => platProy
@@ -132,6 +203,18 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
     metricTotals.length > 0 ? `${metricTotals.length} métrica${metricTotals.length !== 1 ? 's' : ''}` : '',
     groups.length > 1 ? `${groups.length} grupos` : '',
   ].filter(Boolean).join(' · ')
+
+  // Helper: nombre del CPR según la métrica
+  const cprLabel = (metrica) => {
+    const k = String(metrica || '').toLowerCase().trim()
+    if (k.includes('alcance') || k.includes('reach')) return 'CPM (Alcance)'
+    if (k.includes('interacc') || k.includes('interaccion')) return 'CPI (Interacción)'
+    if (k.includes('view')) return 'CPV (View)'
+    if (k.includes('like')) return 'CPL (Like)'
+    if (k.includes('thruplay')) return 'CPTV (ThruPlay)'
+    if (k.includes('visitas')) return 'CPVP (Visita Perfil)'
+    return `CPR (${capitalize(metrica)})`
+  }
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${accent}33` }}>
@@ -183,6 +266,44 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
             </div>
           </div>
 
+          {/* ── CPR por objetivo a nivel plataforma ── */}
+          {platformCPRs.length > 0 && (
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-3">
+                Costo por resultado — Plataforma
+              </p>
+              <div className={`grid gap-3 ${
+                platformCPRs.length <= 2 ? 'grid-cols-2' :
+                platformCPRs.length <= 3 ? 'grid-cols-3' :
+                'grid-cols-2 lg:grid-cols-4'
+              }`}>
+                {platformCPRs.map((c, i) => {
+                  const s = metricStyle(c.metrica)
+                  const metaVal = platCPRMetaMap[c.key]
+                  // Variación: negativo es mejor (menor costo), pero mostramos como:
+                  // si CPR real < meta → positivo (bueno), si CPR real > meta → negativo (malo)
+                  let variation = undefined
+                  if (metaVal && metaVal > 0) {
+                    variation = ((metaVal - c.cpr) / metaVal) * 100
+                  }
+                  return (
+                    <KPICard
+                      key={`cpr-${c.key}`}
+                      title={cprLabel(c.metrica)}
+                      value={c.cpr}
+                      icon={Target}
+                      accentColor={s.accent}
+                      formatter={v => `$${formatDecimal(v, 4)}`}
+                      variation={variation}
+                      subtitle={metaVal > 0 ? `Meta: $${formatDecimal(metaVal, 4)}` : undefined}
+                      delay={i}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ── Desglose por grupo ── */}
           <div>
             <p className="text-[10px] uppercase tracking-widest text-white/40 font-semibold mb-3">
@@ -203,7 +324,7 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
               </div>
             )}
 
-            {/* Tabla: Objetivo | Métrica | Resultado | Meta | vs Meta | Inversión */}
+            {/* Tabla: Objetivo | Métrica | Resultado | Meta | vs Meta | Inversión | CPR | CPR vs Meta */}
             {groupRows.length > 0 ? (
               <DataTable
                 columns={[
@@ -230,6 +351,42 @@ export function PaidMediaSection({ platform, month, campanas, proyecciones, acce
                       const objKey = String(r.objetivo || '').toLowerCase().trim()
                       const inv = objInvMap[objKey]
                       return inv > 0 ? formatCurrency(inv) : <span className="text-white/30">—</span>
+                    },
+                  },
+                  { key: '_cpr', label: 'CPR', align: 'right',
+                    render: (_, r) => {
+                      const metricKey = String(r.metrica || r.objetivo || '').toLowerCase().trim()
+                      const objKey = String(r.objetivo || '').toLowerCase().trim()
+                      const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
+                      const real = safeNumber(r.real)
+                      if (!inv || !real) return <span className="text-white/30">—</span>
+                      const cpr = inv / real
+                      return (
+                        <div>
+                          <div className="text-sm font-mono text-amber-200">${formatDecimal(cpr, 4)}</div>
+                        </div>
+                      )
+                    },
+                  },
+                  { key: '_cpr_vs', label: 'CPR vs Meta', align: 'right',
+                    render: (_, r) => {
+                      const metricKey = String(r.metrica || r.objetivo || '').toLowerCase().trim()
+                      const objKey = String(r.objetivo || '').toLowerCase().trim()
+                      const inv = objInvMap[metricKey] || objInvMap[objKey] || 0
+                      const real = safeNumber(r.real)
+                      if (!inv || !real) return <span className="text-white/30">—</span>
+                      const cprReal = inv / real
+                      // Leer CPR meta del sheet (cpr_meta de la fila de proyección de este grupo)
+                      const cprMeta = getGroupCPRMeta(platProy, platform, bucket, metricKey)
+                        || getGroupCPRMeta(platProy, platform, bucket, objKey)
+                      if (!cprMeta) return <span className="text-white/30">—</span>
+                      // Variación: si CPR real < meta → bueno (positivo), CPR real > meta → malo (negativo)
+                      const pct = ((cprMeta - cprReal) / cprMeta) * 100
+                      return (
+                        <span className={pct >= 0 ? 'text-emerald-300' : 'text-red-300'}>
+                          {pct >= 0 ? '+' : ''}{pct.toFixed(1)}%
+                        </span>
+                      )
                     },
                   },
                 ]}
