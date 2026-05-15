@@ -18,6 +18,12 @@ const TYPE_LABELS = {
   views:       { label: 'Mayor Views',        icon: Play },
 }
 
+function getTypeInfo(type) {
+  if (!type) return { label: 'Top Post', icon: Trophy }
+  const key = String(type).toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  return TYPE_LABELS[key] || { label: String(type), icon: Trophy }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Universal HTML Embed — accepts ANY embed code pasted into embed_url.
 // Scales iframes to fit the container by setting width=100% and preserving
@@ -259,30 +265,30 @@ function PostPreview({ post, platform, isVideo, embedInfo }) {
 export function TopPostCard({ post, type = 'alcance', platform = 'facebook', delay = 0 }) {
   if (!post) return null
   const isVideo = platform === 'tiktok' || /video|reel/i.test(post.tipo || '')
-  const typeInfo = TYPE_LABELS[type] || { label: 'Top Post', icon: Trophy }
+  const typeInfo = getTypeInfo(post.tipo_top || type)
   const TypeIcon = typeInfo.icon
   const style = PLATFORM_STYLES[platform] || PLATFORM_STYLES.facebook
   const embedInfo = classifyEmbed(post.embed_url)
   const linkUrl = extractLinkFromEmbed(post.embed_url)
 
-  const primaryMetric = type === 'views'
-    ? { label: 'Views', value: post.views, icon: Eye }
-    : type === 'interaccion'
-      ? { label: 'Interacciones', value: post.interacciones, icon: Heart }
-      : { label: 'Alcance', value: post.alcance, icon: Eye }
+  // Show all available metrics
+  const metrics = [
+    post.alcance > 0 && { label: 'Alcance', value: post.alcance, icon: Eye },
+    post.interacciones > 0 && { label: 'Interacciones', value: post.interacciones, icon: Heart },
+    post.views > 0 && { label: 'Views', value: post.views, icon: Play },
+  ].filter(Boolean)
 
-  const secondaryMetric = type === 'views'
-    ? { label: 'Interacciones', value: post.interacciones, icon: Heart }
-    : type === 'interaccion'
-      ? { label: 'Alcance', value: post.alcance, icon: Eye }
-      : { label: 'Interacciones', value: post.interacciones, icon: Heart }
+  // Fallback: at least show primary/secondary
+  const primaryMetric = metrics[0] || { label: 'Alcance', value: post.alcance, icon: Eye }
+  const secondaryMetric = metrics[1] || null
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: delay * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="glass-card rounded-2xl overflow-hidden group"
+      className="glass-card rounded-2xl overflow-hidden group flex flex-col"
+      style={{ minWidth: 0 }}
     >
       <div className="relative px-4 py-3 flex items-center justify-between border-b border-white/10">
         <div className="flex items-center gap-2">
@@ -297,18 +303,20 @@ export function TopPostCard({ post, type = 'alcance', platform = 'facebook', del
         </div>
       </div>
 
-      <PostPreview post={post} platform={platform} isVideo={isVideo} embedInfo={embedInfo} />
+      <div style={{ height: EMBED_HEIGHT, overflow: 'hidden' }}>
+        <PostPreview post={post} platform={platform} isVideo={isVideo} embedInfo={embedInfo} />
+      </div>
 
-      {embedInfo.type !== 'html_embed' && !['ig_url', 'fb_url', 'tt_url'].includes(embedInfo.type) &&
-        post.descripcion && !isNullishString(post.descripcion) && (
+      {/* Descripción siempre visible si existe */}
+      {post.descripcion && !isNullishString(post.descripcion) && (
         <div className="px-4 pt-3">
-          <p className="text-sm text-white/75 line-clamp-2 leading-relaxed">{post.descripcion}</p>
+          <p className="text-sm text-white/75 line-clamp-3 leading-relaxed">{post.descripcion}</p>
         </div>
       )}
 
-      <div className="p-4 grid grid-cols-2 gap-3">
+      <div className={`p-4 grid gap-3 ${secondaryMetric ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <MetricBox label={primaryMetric.label} value={primaryMetric.value} icon={primaryMetric.icon} accent={style.bg} />
-        <MetricBox label={secondaryMetric.label} value={secondaryMetric.value} icon={secondaryMetric.icon} muted />
+        {secondaryMetric && <MetricBox label={secondaryMetric.label} value={secondaryMetric.value} icon={secondaryMetric.icon} muted />}
       </div>
 
       {linkUrl && (
@@ -339,32 +347,64 @@ function MetricBox({ label, value, icon: Icon, accent, muted }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Section wrapper
+// Section wrapper — carousel: max 3 visible, arrows to navigate
 // ─────────────────────────────────────────────────────────────────────────────
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
 export function TopPostsSection({ posts = [], platform = 'facebook' }) {
+  const [page, setPage] = useState(0)
   if (!posts?.length) return null
 
-  const isTikTok = platform === 'tiktok'
-  const postAlcance     = posts.find(p => p.tipo_top === 'alcance')
-  const postInteraccion = posts.find(p => p.tipo_top === 'interaccion')
-  const postViews       = posts.find(p => p.tipo_top === 'views')
-
-  const cards = isTikTok
-    ? [postViews && { post: postViews, type: 'views' }, postInteraccion && { post: postInteraccion, type: 'interaccion' }]
-    : [postAlcance && { post: postAlcance, type: 'alcance' }, postInteraccion && { post: postInteraccion, type: 'interaccion' }]
-
-  const validCards = cards.filter(Boolean)
-  if (!validCards.length) return null
+  const PAGE_SIZE = 3
+  const totalPages = Math.ceil(posts.length / PAGE_SIZE)
+  const visiblePosts = posts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const showArrows = posts.length > PAGE_SIZE
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Trophy className="w-4 h-4 text-amber-400" />
-        <h3 className="text-base font-bold font-display text-white">Top Posts del Mes</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Trophy className="w-4 h-4 text-amber-400" />
+          <h3 className="text-base font-bold font-display text-white">Top Posts del Mes</h3>
+          {posts.length > PAGE_SIZE && (
+            <span className="text-xs text-white/40 ml-1">({posts.length} posts)</span>
+          )}
+        </div>
+        {showArrows && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft className="w-4 h-4 text-white/70" />
+            </button>
+            <span className="text-xs text-white/50 font-mono min-w-[3rem] text-center">
+              {page + 1} / {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight className="w-4 h-4 text-white/70" />
+            </button>
+          </div>
+        )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {validCards.map((c, i) => (
-          <TopPostCard key={c.type} post={c.post} type={c.type} platform={platform} delay={i} />
+      <div className={`grid gap-5 ${
+        visiblePosts.length === 1 ? 'grid-cols-1 max-w-md' :
+        visiblePosts.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+      }`}>
+        {visiblePosts.map((post, i) => (
+          <TopPostCard
+            key={`${post.tipo_top || ''}-${i}-${page}`}
+            post={post}
+            type={post.tipo_top || 'alcance'}
+            platform={platform}
+            delay={i}
+          />
         ))}
       </div>
     </div>
