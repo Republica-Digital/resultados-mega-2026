@@ -88,6 +88,7 @@ const FIELD_PATTERNS = {
   metrica: /^(metrica|metric|medida)$/,
   proyeccion: /^(proyeccion|projection|forecast)$/,
   real: /^(real|actual|resultado_real)$/,
+  cpr_meta: /^(cpr|cpr_meta|cprmeta|cost_per_result)$/,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
