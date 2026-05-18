@@ -3,7 +3,7 @@ import { Music2, Users, Eye, Heart, TrendingUp, Megaphone, Play } from 'lucide-r
 import { KPICard, KPICardSkeleton } from '../ui/KPICard'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard, TrendLineChart } from '../ui/Charts'
-import { ObservacionesCard } from '../ui/ObservacionesCard'
+import { ObservacionesButton } from '../ui/ObservacionesCard'
 import { TopPostsSection } from '../ui/PostCard'
 import { safeNumber } from '../../utils/format'
 import { PaidMediaSection } from './SocialSection'
@@ -56,7 +56,10 @@ export function TikTokSection({
 
   return (
     <div className="space-y-6">
-      <SectionHeader icon={Music2} title="TikTok" subtitle="Métricas de video corto" accentColor={ACCENT} />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <SectionHeader icon={Music2} title="TikTok" subtitle="Métricas de video corto" accentColor={ACCENT} />
+        <ObservacionesButton observaciones={observaciones} accentColor={ACCENT} />
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Seguidores"       value={safeNumber(data.seguidores)}        icon={Users}      accentColor={ACCENT}     delay={0} />
@@ -109,7 +112,6 @@ export function TikTokSection({
       />
 
       <TopPostsSection posts={topPosts} platform="tiktok" />
-      {observaciones && <ObservacionesCard observacion={observaciones} accentColor={ACCENT} />}
     </div>
   )
 }
