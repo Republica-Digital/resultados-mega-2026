@@ -9,6 +9,7 @@ import { safeNumber } from '../../utils/format'
 import { isNullishString } from '../../utils/urls'
 
 const ACCENT = '#a78bfa'
+const EMBED_MAX_H = 320
 
 // Detect if captura is embed HTML (analyst pasted <iframe>/<blockquote>)
 // or a plain image URL.
@@ -30,14 +31,14 @@ function EmbedSlide({ html }) {
     if (!ref.current) return
     ref.current.innerHTML = html
 
-    // Normalize any iframe to fit container
+    // Normalize any iframe — keep natural width, just cap max
     const iframes = ref.current.querySelectorAll('iframe')
     iframes.forEach(iframe => {
       iframe.style.maxWidth = '100%'
-      iframe.style.width = '100%'
       iframe.style.border = '0'
       iframe.style.display = 'block'
       iframe.setAttribute('loading', 'lazy')
+      iframe.setAttribute('scrolling', 'no')
     })
 
     const loadScript = (id, src) => {
@@ -59,11 +60,13 @@ function EmbedSlide({ html }) {
     }
   }, [html])
 
+  // No background at all — the embed renders at its natural size,
+  // clipped at max height so it never overflows.
   return (
     <div
       ref={ref}
-      className="flex items-start justify-center rounded-xl overflow-hidden"
-      style={{ maxHeight: 280, minHeight: 120 }}
+      className="flex items-start justify-center overflow-hidden"
+      style={{ maxHeight: EMBED_MAX_H }}
     />
   )
 }
@@ -73,7 +76,7 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
   const [imgError, setImgError] = useState({})
   const [modalOpen, setModalOpen] = useState(false)
   const [modalIdx, setModalIdx] = useState(0)
-  const PAGE_SIZE = 4
+  const PAGE_SIZE = 3
 
   if (loading) {
     return (
@@ -98,7 +101,7 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
     .filter(c => c._class !== null)
     .sort((a, b) => safeNumber(a.orden) - safeNumber(b.orden))
 
-  const totalPages = Math.ceil(validCapturas.length / PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(validCapturas.length / PAGE_SIZE))
   const visibleCapturas = validCapturas.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const next = () => setPage(p => (p + 1) % totalPages)
   const prev = () => setPage(p => (p - 1 + totalPages) % totalPages)
@@ -121,7 +124,8 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
         src={captura._class.value}
         alt={`Captura ${idx + 1}`}
         onError={() => setImgError(p => ({ ...p, [idx]: true }))}
-        className={`${inModal ? 'max-w-full max-h-[80vh]' : 'max-w-full max-h-[260px]'} object-contain rounded-lg`}
+        className={`${inModal ? 'max-w-full max-h-[80vh]' : 'max-w-full'} object-contain rounded-lg`}
+        style={inModal ? {} : { maxHeight: EMBED_MAX_H }}
       />
     )
   }
@@ -196,15 +200,19 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -40 }}
               transition={{ duration: 0.35 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              className={`grid gap-5 ${
+                visibleCapturas.length === 1 ? 'grid-cols-1 max-w-md mx-auto' :
+                visibleCapturas.length === 2 ? 'grid-cols-1 sm:grid-cols-2' :
+                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              }`}
             >
               {visibleCapturas.map((captura, i) => {
                 const globalIdx = page * PAGE_SIZE + i
                 return (
                   <div
                     key={globalIdx}
-                    className="rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-white/25 transition-colors flex items-center justify-center p-3"
-                    style={{ maxHeight: 300 }}
+                    className="flex justify-center overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                    style={{ maxHeight: EMBED_MAX_H }}
                     onClick={() => { setModalIdx(globalIdx); setModalOpen(true) }}
                   >
                     {renderSlide(captura, globalIdx, false)}
