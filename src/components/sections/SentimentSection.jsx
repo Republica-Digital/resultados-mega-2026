@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageSquare, ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
@@ -25,13 +25,56 @@ function classifyCaptura(captura) {
   return null
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Drive detection: extract file ID from Drive iframe embed code
+// ─────────────────────────────────────────────────────────────────────────────
+function extractDriveId(html) {
+  const match = html.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/)
+  return match ? match[1] : null
+}
+
+function DriveImage({ fileId, maxH }) {
+  const [err, setErr] = useState(false)
+  // Drive thumbnail endpoint — renders the image directly without the dark viewer
+  const src = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1200`
+
+  if (err) {
+    // Fallback: if thumbnail fails, use iframe but at least try
+    return (
+      <iframe
+        src={`https://drive.google.com/file/d/${fileId}/preview`}
+        title="Drive preview"
+        style={{ width: '100%', height: maxH, border: 0 }}
+        loading="lazy"
+        scrolling="no"
+        allowFullScreen
+      />
+    )
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Captura de comentario"
+      onError={() => setErr(true)}
+      className="max-w-full object-contain rounded-lg"
+      style={{ maxHeight: maxH }}
+    />
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EmbedSlide — handles Drive (as direct image) and social embeds (IG/FB/TT)
+// ─────────────────────────────────────────────────────────────────────────────
 function EmbedSlide({ html }) {
   const ref = useRef(null)
+  const driveId = useMemo(() => extractDriveId(html), [html])
+
   useEffect(() => {
-    if (!ref.current) return
+    // If it's a Drive embed, we render as <img> instead — skip innerHTML
+    if (driveId || !ref.current) return
     ref.current.innerHTML = html
 
-    // Normalize any iframe — keep natural width, just cap max
     const iframes = ref.current.querySelectorAll('iframe')
     iframes.forEach(iframe => {
       iframe.style.maxWidth = '100%'
@@ -58,10 +101,18 @@ function EmbedSlide({ html }) {
       loadScript('fb-sdk', 'https://connect.facebook.net/es_LA/sdk.js#xfbml=1&version=v18.0')
       setTimeout(() => { try { window.FB?.XFBML?.parse(ref.current) } catch {} }, 200)
     }
-  }, [html])
+  }, [html, driveId])
 
-  // No background at all — the embed renders at its natural size,
-  // clipped at max height so it never overflows.
+  // Drive embeds → render as clean image, no dark viewer background
+  if (driveId) {
+    return (
+      <div className="flex items-center justify-center overflow-hidden" style={{ maxHeight: EMBED_MAX_H }}>
+        <DriveImage fileId={driveId} maxH={EMBED_MAX_H} />
+      </div>
+    )
+  }
+
+  // Other embeds (IG, FB, TT, generic iframes)
   return (
     <div
       ref={ref}
@@ -71,6 +122,9 @@ function EmbedSlide({ html }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SentimentSection
+// ─────────────────────────────────────────────────────────────────────────────
 export function SentimentSection({ data, capturas = [], observaciones, loading, theme }) {
   const [page, setPage] = useState(0)
   const [imgError, setImgError] = useState({})
