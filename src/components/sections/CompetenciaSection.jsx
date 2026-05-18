@@ -1,7 +1,7 @@
 import { Users } from 'lucide-react'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard, ComparisonBarChart } from '../ui/Charts'
-import { ObservacionesCard } from '../ui/ObservacionesCard'
+import { ObservacionesButton } from '../ui/ObservacionesCard'
 import { DataTable } from '../ui/DataTable'
 import { safeNumber, formatNumber } from '../../utils/format'
 
@@ -30,7 +30,10 @@ export function CompetenciaSection({ data = [], observaciones, loading }) {
 
   return (
     <div className="space-y-6">
-      <SectionHeader icon={Users} title="Competencia" subtitle="Análisis del entorno competitivo" accentColor={ACCENT} />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <SectionHeader icon={Users} title="Competencia" subtitle="Análisis del entorno competitivo" accentColor={ACCENT} />
+        <ObservacionesButton observaciones={observaciones} accentColor={ACCENT} />
+      </div>
 
       {redes.map((red, idx) => {
         const subset = data.filter(d => d.red === red)
@@ -88,8 +91,6 @@ export function CompetenciaSection({ data = [], observaciones, loading }) {
           </ChartCard>
         )
       })}
-
-      {observaciones && <ObservacionesCard observacion={observaciones} accentColor={ACCENT} />}
     </div>
   )
 }
