@@ -106,15 +106,15 @@ function UniversalEmbed({ html, platform, onFail }) {
   }
 
   return (
-    <div className="relative bg-white rounded-xl overflow-hidden" style={{ minHeight: EMBED_HEIGHT }}>
+    <div className="relative flex justify-center overflow-hidden" style={{ minHeight: EMBED_HEIGHT }}>
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-          <Loader className="w-6 h-6 text-gray-400 animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <Loader className="w-6 h-6 text-white/40 animate-spin" />
         </div>
       )}
       <div
         ref={ref}
-        className="w-full overflow-y-auto overflow-x-hidden flex items-start justify-center"
+        className="overflow-hidden flex items-start justify-center"
         style={{ maxHeight: EMBED_HEIGHT + 100, minHeight: EMBED_HEIGHT }}
       />
     </div>
@@ -156,13 +156,13 @@ function UrlEmbed({ url, type, onFail }) {
 
   if (type === 'tt_url') {
     return (
-      <div className="relative bg-white rounded-xl overflow-hidden flex items-start justify-center" style={{ minHeight: EMBED_HEIGHT }}>
+      <div className="relative flex items-start justify-center overflow-hidden" style={{ minHeight: EMBED_HEIGHT }}>
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-            <Loader className="w-6 h-6 text-gray-400 animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <Loader className="w-6 h-6 text-white/40 animate-spin" />
           </div>
         )}
-        <div ref={ref} className="w-full overflow-y-auto overflow-x-hidden p-2 flex justify-center" style={{ maxHeight: EMBED_HEIGHT + 100 }} />
+        <div ref={ref} className="overflow-hidden p-2 flex justify-center" style={{ maxHeight: EMBED_HEIGHT + 100 }} />
       </div>
     )
   }
@@ -170,17 +170,17 @@ function UrlEmbed({ url, type, onFail }) {
   if (!embedSrc) { onFail?.(); return null }
 
   return (
-    <div className="relative bg-white rounded-xl overflow-hidden" style={{ minHeight: EMBED_HEIGHT }}>
+    <div className="relative flex justify-center overflow-hidden" style={{ minHeight: EMBED_HEIGHT }}>
       {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
-          <Loader className="w-6 h-6 text-gray-400 animate-spin" />
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <Loader className="w-6 h-6 text-white/40 animate-spin" />
         </div>
       )}
       <iframe
         src={embedSrc}
         title="Post embed"
-        className="w-full border-0"
-        style={{ height: EMBED_HEIGHT, width: '100%' }}
+        className="border-0"
+        style={{ height: EMBED_HEIGHT, width: type === 'fb_url' ? 380 : '100%', maxWidth: '100%' }}
         scrolling="no"
         allowFullScreen
         allow="autoplay; clipboard-write; encrypted-media; picture-in-picture"
