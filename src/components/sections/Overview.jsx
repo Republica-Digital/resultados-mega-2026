@@ -3,7 +3,7 @@ import { Users, Eye, Heart, Megaphone, TrendingUp, Sparkles, AlertTriangle, Trop
 import { KPICard, KPICardSkeleton } from '../ui/KPICard'
 import { SectionHeader } from '../ui/SectionHeader'
 import { ChartCard, TrendLineChart, DistributionDonut } from '../ui/Charts'
-import { ObservacionesCard } from '../ui/ObservacionesCard'
+import { ObservacionesButton } from '../ui/ObservacionesCard'
 import { SentimentGauge } from '../ui/SentimentGauge'
 import { safeNumber, formatCurrency } from '../../utils/format'
 
@@ -67,16 +67,19 @@ export function Overview({ data, historical, loading, theme, features }) {
     .sort((a, b) => safeNumber(a.prioridad) - safeNumber(b.prioridad))
     .slice(0, 4)
 
-  const observacion = (data.observaciones || []).find(o => o.seccion === 'overview')
+  const observaciones = (data.observaciones || []).filter(o => o.seccion === 'overview')
 
   return (
     <div className="space-y-6">
-      <SectionHeader
-        icon={TrendingUp}
-        title="Resumen Ejecutivo"
-        subtitle="Vista general del desempeño del mes"
-        accentColor={theme.primary}
-      />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <SectionHeader
+          icon={TrendingUp}
+          title="Resumen Ejecutivo"
+          subtitle="Vista general del desempeño del mes"
+          accentColor={theme.primary}
+        />
+        <ObservacionesButton observaciones={observaciones} accentColor={theme.primary} />
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard title="Seguidores Totales" value={totalSeguidores}    icon={Users}     accentColor={theme.primary} delay={0} />
@@ -146,8 +149,6 @@ export function Overview({ data, historical, loading, theme, features }) {
           )}
         </ChartCard>
       </div>
-
-      {observacion && <ObservacionesCard observacion={observacion} accentColor={theme.primary} />}
     </div>
   )
 }
