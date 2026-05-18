@@ -2,7 +2,7 @@ import { Megaphone, Eye, MousePointerClick, DollarSign, TrendingUp, Film } from 
 import { KPICard, KPICardSkeleton } from '../ui/KPICard'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard, DistributionDonut } from '../ui/Charts'
-import { ObservacionesCard } from '../ui/ObservacionesCard'
+import { ObservacionesButton } from '../ui/ObservacionesCard'
 import { DataTable } from '../ui/DataTable'
 import { safeNumber, formatNumber, formatCurrency, formatDecimal } from '../../utils/format'
 import { getGoogleObjective } from '../../utils/campaigns'
@@ -78,7 +78,10 @@ export function GoogleAdsSection({ data = [], ciudades = [], keywords = [], obse
 
   return (
     <div className="space-y-6">
-      <SectionHeader icon={Megaphone} title="Google Ads" subtitle="Performance de campañas pagadas" accentColor={ACCENT} />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <SectionHeader icon={Megaphone} title="Google Ads" subtitle="Performance de campañas pagadas" accentColor={ACCENT} />
+        <ObservacionesButton observaciones={observaciones} accentColor={ACCENT} />
+      </div>
 
       {/* KPI overview — Views / Clics / ImpVisibles / CTR */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -199,8 +202,6 @@ export function GoogleAdsSection({ data = [], ciudades = [], keywords = [], obse
           />
         </ChartCard>
       )}
-
-      {observaciones && <ObservacionesCard observacion={observaciones} accentColor={ACCENT} />}
     </div>
   )
 }
