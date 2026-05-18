@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageSquare, ChevronLeft, ChevronRight, Image as ImageIcon, Maximize2, X } from 'lucide-react'
+import { MessageSquare, ChevronLeft, ChevronRight, Image as ImageIcon, X } from 'lucide-react'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard } from '../ui/Charts'
 import { ObservacionesCard } from '../ui/ObservacionesCard'
@@ -62,16 +62,18 @@ function EmbedSlide({ html }) {
   return (
     <div
       ref={ref}
-      className="flex items-start justify-center bg-white rounded-xl overflow-y-auto overflow-x-hidden w-full"
-      style={{ maxWidth: 520, maxHeight: 620, minHeight: 420 }}
+      className="flex items-start justify-center rounded-xl overflow-hidden"
+      style={{ maxHeight: 280, minHeight: 120 }}
     />
   )
 }
 
 export function SentimentSection({ data, capturas = [], observaciones, loading, theme }) {
-  const [slide, setSlide] = useState(0)
+  const [page, setPage] = useState(0)
   const [imgError, setImgError] = useState({})
   const [modalOpen, setModalOpen] = useState(false)
+  const [modalIdx, setModalIdx] = useState(0)
+  const PAGE_SIZE = 4
 
   if (loading) {
     return (
@@ -96,33 +98,30 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
     .filter(c => c._class !== null)
     .sort((a, b) => safeNumber(a.orden) - safeNumber(b.orden))
 
-  const next = () => setSlide(s => (s + 1) % validCapturas.length)
-  const prev = () => setSlide(s => (s - 1 + validCapturas.length) % validCapturas.length)
+  const totalPages = Math.ceil(validCapturas.length / PAGE_SIZE)
+  const visibleCapturas = validCapturas.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const next = () => setPage(p => (p + 1) % totalPages)
+  const prev = () => setPage(p => (p - 1 + totalPages) % totalPages)
 
-  const currentCaptura = validCapturas[slide]
-
-  const renderSlide = (captura, inModal = false) => {
+  const renderSlide = (captura, idx, inModal = false) => {
     if (!captura?._class) return null
     if (captura._class.kind === 'embed') {
       return <EmbedSlide html={captura._class.value} />
     }
-    if (imgError[slide] && !inModal) {
+    if (imgError[idx] && !inModal) {
       return (
-        <div className="flex flex-col items-center gap-3 text-white/40 py-12">
-          <ImageIcon className="w-12 h-12" />
-          <p className="text-sm">No se pudo cargar la imagen</p>
-          <p className="text-[11px] text-white/30 max-w-md text-center break-all">
-            {captura._class.value}
-          </p>
+        <div className="flex flex-col items-center gap-3 text-white/40 py-8">
+          <ImageIcon className="w-10 h-10" />
+          <p className="text-xs">No se pudo cargar la imagen</p>
         </div>
       )
     }
     return (
       <img
         src={captura._class.value}
-        alt={`Captura ${slide + 1}`}
-        onError={() => setImgError(p => ({ ...p, [slide]: true }))}
-        className={`${inModal ? 'max-w-full max-h-[80vh]' : 'max-w-full max-h-[500px]'} object-contain rounded-lg shadow-2xl`}
+        alt={`Captura ${idx + 1}`}
+        onError={() => setImgError(p => ({ ...p, [idx]: true }))}
+        className={`${inModal ? 'max-w-full max-h-[80vh]' : 'max-w-full max-h-[260px]'} object-contain rounded-lg`}
       />
     )
   }
@@ -167,65 +166,58 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
                 {validCapturas.length} {validCapturas.length === 1 ? 'captura' : 'capturas'} del mes
               </p>
             </div>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors border border-white/10"
-              title="Expandir"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="relative">
-            <div className="relative bg-black/30 rounded-xl overflow-hidden" style={{ minHeight: 440 }}>
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={slide}
-                  initial={{ opacity: 0, x: 50 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -50 }}
-                  transition={{ duration: 0.4 }}
-                  className="flex items-center justify-center p-4"
-                  style={{ minHeight: 440 }}
-                >
-                  {renderSlide(currentCaptura, false)}
-                </motion.div>
-              </AnimatePresence>
+            <div className="flex items-center gap-2">
+              {totalPages > 1 && (
+                <>
+                  <button
+                    onClick={prev}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors border border-white/10"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs text-white/50 font-mono min-w-[3rem] text-center">
+                    {page + 1} / {totalPages}
+                  </span>
+                  <button
+                    onClick={next}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors border border-white/10"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
-
-            {validCapturas.length > 1 && (
-              <>
-                <button
-                  onClick={prev}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full glass-strong hover:bg-white/20 transition-colors shadow-lg"
-                >
-                  <ChevronLeft className="w-5 h-5 text-white" />
-                </button>
-                <button
-                  onClick={next}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full glass-strong hover:bg-white/20 transition-colors shadow-lg"
-                >
-                  <ChevronRight className="w-5 h-5 text-white" />
-                </button>
-                <div className="flex justify-center gap-1.5 mt-4">
-                  {validCapturas.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setSlide(idx)}
-                      className={`h-1.5 rounded-full transition-all ${
-                        idx === slide ? 'w-8 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
           </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={page}
+              initial={{ opacity: 0, x: 40 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -40 }}
+              transition={{ duration: 0.35 }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            >
+              {visibleCapturas.map((captura, i) => {
+                const globalIdx = page * PAGE_SIZE + i
+                return (
+                  <div
+                    key={globalIdx}
+                    className="rounded-xl overflow-hidden border border-white/10 cursor-pointer hover:border-white/25 transition-colors flex items-center justify-center p-3"
+                    style={{ maxHeight: 300 }}
+                    onClick={() => { setModalIdx(globalIdx); setModalOpen(true) }}
+                  >
+                    {renderSlide(captura, globalIdx, false)}
+                  </div>
+                )
+              })}
+            </motion.div>
+          </AnimatePresence>
         </div>
       )}
 
       <AnimatePresence>
-        {modalOpen && currentCaptura && (
+        {modalOpen && validCapturas[modalIdx] && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -247,7 +239,7 @@ export function SentimentSection({ data, capturas = [], observaciones, loading, 
                 <X className="w-5 h-5 text-white" />
               </button>
               <div className="flex items-center justify-center">
-                {renderSlide(currentCaptura, true)}
+                {renderSlide(validCapturas[modalIdx], modalIdx, true)}
               </div>
             </motion.div>
           </motion.div>
