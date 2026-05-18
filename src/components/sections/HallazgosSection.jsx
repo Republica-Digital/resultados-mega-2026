@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Sparkles, Trophy, AlertTriangle, Target, Lightbulb, Flag } from 'lucide-react'
+import { Sparkles, Trophy, AlertTriangle, Target, Lightbulb, Flag, MessageCircle } from 'lucide-react'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { safeNumber } from '../../utils/format'
 
@@ -10,6 +10,7 @@ const TIPO_CONFIG = {
   alerta: { icon: AlertTriangle, color: '#ef4444', label: 'Alerta', bg: 'rgba(239,68,68,0.12)' },
   oportunidad: { icon: Target, color: '#3b82f6', label: 'Oportunidad', bg: 'rgba(59,130,246,0.12)' },
   insight: { icon: Lightbulb, color: '#facc15', label: 'Insight', bg: 'rgba(250,204,21,0.12)' },
+  recomendacion: { icon: MessageCircle, color: '#06b6d4', label: 'Recomendación', bg: 'rgba(6,182,212,0.12)' },
   riesgo: { icon: Flag, color: '#f97316', label: 'Riesgo', bg: 'rgba(249,115,22,0.12)' },
 }
 
