@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom'
 import { Sidebar } from '../components/layout/Sidebar'
 import { Header } from '../components/layout/Header'
@@ -12,6 +12,8 @@ import { CompetenciaSection } from '../components/sections/CompetenciaSection'
 import { HallazgosSection } from '../components/sections/HallazgosSection'
 import { ProyeccionesSection } from '../components/sections/ProyeccionesSection'
 import { detectAvailableBuckets } from '../utils/campaigns'
+import { exportDashboardPDF } from '../utils/exportPDF'
+import { exportDashboardData } from '../utils/exportToExcel'
 
 const brandThemes = {
   botanera: {
@@ -49,6 +51,7 @@ export function Dashboard() {
   const [presentationMode, setPresentationMode] = useState(false)
   // GLOBAL bucket state — shared across all sections
   const [bucket, setBucket] = useState('mensual')
+  const [exportStatus, setExportStatus] = useState(null) // null | string message
 
   const {
     data, loading, error, refresh, isRefreshing,
@@ -106,6 +109,49 @@ export function Dashboard() {
       setBucket('mensual')
     }
   }, [availableBuckets, bucket])
+
+  // ─── Export handlers ─────────────────────────────────────────────────────
+  const handleExportPDF = useCallback(async () => {
+    if (exportStatus) return
+    try {
+      setExportStatus('Preparando PDF…')
+      await exportDashboardPDF({
+        marcaId,
+        brandName: brandConfig?.nombre || marcaId,
+        selectedMonth,
+        filteredData,
+        allData: data,
+        allProyecciones: data.proyecciones || [],
+        features,
+        onProgress: (cur, total, name) => {
+          setExportStatus(`Generando ${name}… (${cur}/${total})`)
+        },
+      })
+    } catch (err) {
+      console.error('PDF export failed:', err)
+    } finally {
+      setExportStatus(null)
+    }
+  }, [exportStatus, brandConfig, marcaId, selectedMonth, filteredData, data, features])
+
+  const handleExportExcel = useCallback(async () => {
+    if (exportStatus) return
+    try {
+      setExportStatus('Generando Excel…')
+      await exportDashboardData(
+        marcaId,
+        selectedMonth,
+        filteredData,
+        data,               // allHistorical (full data object)
+        data.proyecciones || [],  // allProyecciones
+        brandConfig,
+      )
+    } catch (err) {
+      console.error('Excel export failed:', err)
+    } finally {
+      setExportStatus(null)
+    }
+  }, [exportStatus, brandConfig, marcaId, selectedMonth, filteredData, data])
 
   if (error) {
     return (
@@ -179,6 +225,9 @@ export function Dashboard() {
           isRefreshing={isRefreshing}
           presentationMode={presentationMode}
           setPresentationMode={setPresentationMode}
+          onExportPDF={handleExportPDF}
+          onExportExcel={handleExportExcel}
+          isExporting={exportStatus}
         />
 
         <main className="p-4 md:p-6 lg:p-8 max-w-[1600px] mx-auto">
