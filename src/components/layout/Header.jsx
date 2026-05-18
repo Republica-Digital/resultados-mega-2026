@@ -1,18 +1,22 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Calendar, Maximize2, Minimize2, ChevronDown } from 'lucide-react'
+import { RefreshCw, Calendar, Maximize2, Minimize2, ChevronDown, FileDown, FileSpreadsheet, Loader } from 'lucide-react'
 import { formatMonthLong } from '../../utils/format'
 
 export function Header({
   brandConfig, theme, months = [], selectedMonth, onMonthChange,
   onRefresh, isRefreshing, presentationMode, setPresentationMode,
+  onExportPDF, onExportExcel, isExporting,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
   const pickerRef = useRef(null)
+  const exportRef = useRef(null)
 
   useEffect(() => {
     const onClick = (e) => {
       if (pickerRef.current && !pickerRef.current.contains(e.target)) setPickerOpen(false)
+      if (exportRef.current && !exportRef.current.contains(e.target)) setExportMenuOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -85,6 +89,62 @@ export function Header({
             </div>
           )}
 
+          {/* Export dropdown */}
+          <div className="relative" ref={exportRef}>
+            <button
+              onClick={() => setExportMenuOpen(!exportMenuOpen)}
+              disabled={isExporting}
+              className="glass-strong flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-white/15 transition-colors disabled:opacity-50"
+              title="Exportar"
+            >
+              {isExporting ? (
+                <Loader className="w-4 h-4 animate-spin" />
+              ) : (
+                <FileDown className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline text-xs">Exportar</span>
+              <ChevronDown className={`w-3 h-3 text-white/50 transition-transform ${exportMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+              {exportMenuOpen && !isExporting && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 top-full mt-2 w-64 glass-strong rounded-xl overflow-hidden shadow-2xl"
+                >
+                  <div className="p-1.5 space-y-0.5">
+                    <button
+                      onClick={() => { setExportMenuOpen(false); onExportPDF?.() }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors text-left"
+                    >
+                      <div className="p-1.5 rounded-lg bg-red-500/15 border border-red-500/25">
+                        <FileDown className="w-4 h-4 text-red-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">Descargar PDF</p>
+                        <p className="text-[11px] text-white/45">Captura visual de todas las secciones</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => { setExportMenuOpen(false); onExportExcel?.() }}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm text-white/80 hover:bg-white/10 hover:text-white transition-colors text-left"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25">
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-sm">Descargar Excel</p>
+                        <p className="text-[11px] text-white/45">Datos del mes actual e históricos</p>
+                      </div>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Refresh */}
           <button
             onClick={onRefresh}
@@ -105,6 +165,34 @@ export function Header({
           </button>
         </div>
       </div>
+
+      {/* Export progress bar */}
+      <AnimatePresence>
+        {isExporting && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3"
+          >
+            <div className="glass-strong rounded-xl px-4 py-3 flex items-center gap-3">
+              <Loader className="w-4 h-4 text-white/60 animate-spin flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-white/80">{isExporting}</p>
+                <div className="mt-1.5 h-1 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full rounded-full"
+                    style={{ background: theme.primary }}
+                    initial={{ width: '5%' }}
+                    animate={{ width: '90%' }}
+                    transition={{ duration: 15, ease: 'linear' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   )
 }
