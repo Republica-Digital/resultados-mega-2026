@@ -3,7 +3,7 @@ import { Facebook, Instagram, Users, Eye, Heart, TrendingUp, Megaphone, DollarSi
 import { KPICard, KPICardSkeleton } from '../ui/KPICard'
 import { SectionHeader, EmptyState } from '../ui/SectionHeader'
 import { ChartCard, TrendLineChart } from '../ui/Charts'
-import { ObservacionesCard } from '../ui/ObservacionesCard'
+import { ObservacionesButton } from '../ui/ObservacionesCard'
 import { TopPostsSection } from '../ui/PostCard'
 import { DataTable } from '../ui/DataTable'
 import { CampaignToggle } from '../ui/CampaignToggle'
@@ -508,7 +508,10 @@ export function SocialSection({
 
   return (
     <div className="space-y-6">
-      <SectionHeader icon={cfg.icon} title={cfg.label} subtitle="Métricas de desempeño" accentColor={cfg.accent} />
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <SectionHeader icon={cfg.icon} title={cfg.label} subtitle="Métricas de desempeño" accentColor={cfg.accent} />
+        <ObservacionesButton observaciones={observaciones} accentColor={cfg.accent} />
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {primaryKpis.map((k, i) => (
@@ -551,8 +554,6 @@ export function SocialSection({
       />
 
       <TopPostsSection posts={topPosts} platform={platform} />
-
-      {observaciones && <ObservacionesCard observacion={observaciones} accentColor={cfg.accent} />}
     </div>
   )
 }
