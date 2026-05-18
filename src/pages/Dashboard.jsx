@@ -200,8 +200,7 @@ export function Dashboard() {
                 campanas={filteredData.campanas}
                 proyecciones={data.proyecciones || []}
                 topPosts={filteredData.topPosts?.filter(p => p.plataforma === 'facebook')}
-                observaciones={filteredData.observaciones?.find(o => o.seccion === 'facebook')}
-                hallazgos={filteredData.hallazgos?.filter(h => h.seccion === 'facebook')}
+                observaciones={filteredData.observaciones?.filter(o => o.seccion === 'facebook')}
                 historical={historicalData.facebook}
                 loading={loading}
                 theme={theme}
@@ -214,8 +213,7 @@ export function Dashboard() {
                 campanas={filteredData.campanas}
                 proyecciones={data.proyecciones || []}
                 topPosts={filteredData.topPosts?.filter(p => p.plataforma === 'instagram')}
-                observaciones={filteredData.observaciones?.find(o => o.seccion === 'instagram')}
-                hallazgos={filteredData.hallazgos?.filter(h => h.seccion === 'instagram')}
+                observaciones={filteredData.observaciones?.filter(o => o.seccion === 'instagram')}
                 historical={historicalData.instagram}
                 loading={loading}
                 theme={theme}
@@ -227,8 +225,7 @@ export function Dashboard() {
                 campanas={filteredData.campanas}
                 proyecciones={data.proyecciones || []}
                 topPosts={filteredData.topPosts?.filter(p => p.plataforma === 'tiktok')}
-                observaciones={filteredData.observaciones?.find(o => o.seccion === 'tiktok')}
-                hallazgos={filteredData.hallazgos?.filter(h => h.seccion === 'tiktok')}
+                observaciones={filteredData.observaciones?.filter(o => o.seccion === 'tiktok')}
                 historical={historicalData.tiktok}
                 loading={loading}
               />
@@ -239,8 +236,7 @@ export function Dashboard() {
                   data={filteredData.googleAds}
                   ciudades={filteredData.googleAdsCiudades}
                   keywords={filteredData.googleAdsKeywords}
-                  observaciones={filteredData.observaciones?.find(o => o.seccion === 'google-ads')}
-                  hallazgos={filteredData.hallazgos?.filter(h => h.seccion === 'google-ads')}
+                  observaciones={filteredData.observaciones?.filter(o => o.seccion === 'google-ads')}
                   loading={loading}
                 />
               } />
@@ -249,7 +245,7 @@ export function Dashboard() {
               <SentimentSection
                 data={filteredData.sentiment}
                 capturas={filteredData.sentimentCapturas}
-                observaciones={filteredData.observaciones?.find(o => o.seccion === 'sentiment')}
+                observaciones={filteredData.observaciones?.filter(o => o.seccion === 'sentiment')}
                 loading={loading}
                 theme={theme}
               />
@@ -257,14 +253,14 @@ export function Dashboard() {
             <Route path="competencia" element={
               <CompetenciaSection
                 data={filteredData.competencia}
-                observaciones={filteredData.observaciones?.find(o => o.seccion === 'competencia')}
+                observaciones={filteredData.observaciones?.filter(o => o.seccion === 'competencia')}
                 loading={loading}
                 theme={theme}
               />
             } />
             <Route path="hallazgos" element={
               <HallazgosSection
-                data={filteredData.hallazgos?.filter(h => h.seccion === 'hallazgos')}
+                data={filteredData.hallazgos?.filter(h => h.seccion === 'hallazgos' || h.seccion === 'overview')}
                 loading={loading}
                 theme={theme}
               />
