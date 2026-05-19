@@ -41,7 +41,7 @@ export function TikTokSection({
     )
   }
 
-  const engagement = (safeNumber(data.engagement_rate) * 100).toFixed(2)
+  const engagement = safeNumber(data.engagement_rate).toFixed(2)
 
   const trendData = (historical || [])
     .filter(r => r.mes)
