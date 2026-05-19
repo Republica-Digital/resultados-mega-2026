@@ -24,7 +24,7 @@ const stripSpecial = (s) =>
         'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u',
         'ñ': 'n',
       }
-      return map[m] || m
+      return m in map ? map[m] : m
     })
 
 const fieldAliases = {
